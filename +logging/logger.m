@@ -1,15 +1,18 @@
 classdef logger < handle
-    % Logger class for the logging package
-    %
-    % Syntax:
-    %
-    % Description:
-    %    Logger class for a Pythonic logging MATLAB package.
-    %    Heavily modified version of 'log4m': http://goo.gl/qDUcvZ.
-    %    Original author: Dominique Orban <dominique.orban@gmail.com>
-    %
-    % History:
-    %    01/12/18  jv   forked, started modifications.
+% Logger class for the logging package
+%
+% Syntax:
+%
+% Description:
+%    Logger class for a Pythonic logging MATLAB package.
+%
+%    Heavily modified version of logging4matlab, original author: Dominique
+%    Orban <dominique.orban@gmail.com>, which is a heavily modified version
+%    of 'log4m': http://goo.gl/qDUcvZ.
+%
+% History:
+%    01/12/18  jv   forked github.com/optimizers/logging4matlab.git, 
+%                   started modifications.
     
     properties (SetAccess = immutable)
         name;
@@ -19,6 +22,7 @@ classdef logger < handle
         levels = containers.Map(...
             {'ALL','CRITICAL','ERROR','WARNING','INFO','DEBUG','TRACE','NOTSET'},...
             {Inf,50,40,30,20,10,0,-Inf});
+        handlers;
     end
     
     properties (Hidden, SetAccess = protected)
@@ -36,10 +40,12 @@ classdef logger < handle
             parser = inputParser();
             parser.addRequired('name', @ischar);
             parser.addParameter('level', self.level);
+            parser.addParameter('handler', logging.handlers.NullHandler());
             parser.parse(name, varargin{:});
             
             self.name = parser.Results.name;
             self.level = parser.Results.level;
+            self.handlers = parser.Results.handler;
         end
     end
     
@@ -49,12 +55,15 @@ classdef logger < handle
             % Log a new message
             level = self.getLevelNumber(level);
             if level >= self.effectiveLevel
-                fprintf('%-s %-23s %-8s %s\n',caller,datestr(now,'yyyy-mm-dd HH:MM:SS,FFF'), self.getLevelString(level), message);
+                for handler = self.handlers
+                	handler.handle(sprintf('%-s %-23s %-8s %s',caller,datestr(now,'yyyy-mm-dd HH:MM:SS,FFF'), self.getLevelString(level), message));
+                end
             end
         end
         
         function trace(self, message)
             % Log a message with level TRACE
+            [caller_name, ~] = self.findCaller(self);            
             self.log('TRACE', caller_name, message);
         end
         
@@ -95,6 +104,13 @@ classdef logger < handle
             % Set the level of this logger
             level = self.getLevelNumber(level);
             self.level = level;
+        end
+        
+        function addHandler(self,handler)
+            % Add a new handler to this logger
+            % TODO: don't add handlers that are already added...
+            assert(isa(handler,'logging.handlers.Handler'),'Not a valid handler');
+            self.handlers = [handler,self.handlers];
         end
         
         function level = get.effectiveLevel(self)
