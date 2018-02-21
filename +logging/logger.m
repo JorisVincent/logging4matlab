@@ -51,12 +51,29 @@ classdef logger < handle
     
     %% Logging methods
     methods
-        function log(self, level, caller, message)
+        function record = makeRecord(self, level, message, func, pathname, lineno)
+            level = self.getLevelNumber(level);
+            record = logging.logRecord(self.name, level, self.getLevelString(level), message, func, pathname, lineno);
+        end
+        
+        function log(self, level, message)
             % Log a new message
+            %
+            % Syntax:
+            %   log(logger, level, message)
+            %
+            % Inputs:
+            %    logger - logging.logger object
+            %    level  - numeric severity level
+            %
             level = self.getLevelNumber(level);
             if level >= self.effectiveLevel
+                % Create record
+                record = self.makeRecord(level, message, '','',0);
+                
+                % Send to handlers
                 for handler = self.handlers
-                	handler.handle(sprintf('%-s %-23s %-8s %s',caller,datestr(now,'yyyy-mm-dd HH:MM:SS,FFF'), self.getLevelString(level), message));
+                	handler.handle(record);
                 end
             end
         end
@@ -64,37 +81,37 @@ classdef logger < handle
         function trace(self, message)
             % Log a message with level TRACE
             [caller_name, ~] = self.findCaller(self);            
-            self.log('TRACE', caller_name, message);
+            self.log('TRACE', message);
         end
         
         function debug(self, message)
             % Log a message with level DEBUG
             [caller_name, ~] = self.findCaller(self);
-            self.log('DEBUG', caller_name, message);
+            self.log('DEBUG', message);
         end
         
         function info(self, message)
             % Log a message with level INFO
             [caller_name, ~] = self.findCaller(self);
-            self.log('INFO', caller_name, message);
+            self.log('INFO', message);
         end
         
         function warning(self, message)
             % Log a message with level WARNING
             [caller_name, ~] = self.findCaller(self);
-            self.log('WARNING', caller_name, message);
+            self.log('WARNING', message);
         end
         
         function error(self, message)
             % Log a message with level ERROR
             [caller_name, ~] = self.findCaller(self);
-            self.log('ERROR', caller_name, message);
+            self.log('ERROR', message);
         end
         
         function critical(self, message)
             % Log a message with level CRITICAL
             [caller_name, ~] = self.findCaller(self);
-            self.log('CRITICAL', caller_name, message);
+            self.log('CRITICAL', message);
         end
     end
     
@@ -108,9 +125,8 @@ classdef logger < handle
         
         function addHandler(self,handler)
             % Add a new handler to this logger
-            % TODO: don't add handlers that are already added...
             assert(isa(handler,'logging.handlers.Handler'),'Not a valid handler');
-            self.handlers = [handler,self.handlers];
+            self.handlers = union(handler,self.handlers);
         end
         
         function level = get.effectiveLevel(self)
@@ -128,7 +144,7 @@ classdef logger < handle
             end
         end
         function level = getLevelString(self, level)
-        % Convert numeric level code to stringliteral level
+            % Convert numeric level code to stringliteral level
             if isnumeric(level)
                 levelsInv = containers.Map(values(self.levels),keys(self.levels));
                 assert(isKey(levelsInv,level),'Level %d does not have a label in this logger');

@@ -15,7 +15,7 @@ classdef StreamHandler < logging.handlers.Handler
             self.stream = parser.Results.stream;
         end
         
-        function emit(self,message)
+        function emit(self,message)      
             fprintf(self.stream,'%s\n',message);
         end
     end

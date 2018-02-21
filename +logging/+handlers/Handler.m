@@ -20,8 +20,10 @@ classdef (Abstract) Handler < matlab.mixin.SetGet & matlab.mixin.Heterogeneous
     end
     
     methods
-        function handle(self,message)
+        function handle(self,record)
             % TODO Filter, compare to level, format.
+            message = sprintf('%-s %-23s %-8s %s',record.func,datestr(record.created,'yyyy-mm-dd HH:MM:SS,FFF'),record.levelName, record.message);
+            
             self.emit(message);
         end
     end
